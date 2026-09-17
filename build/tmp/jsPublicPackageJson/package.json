@@ -1,0 +1,16 @@
+{
+  "name": "flexcrm-kotlin-js-demo",
+  "version": "0.0.0-unspecified",
+  "main": "flexcrm-kotlin-js-demo.js",
+  "devDependencies": {
+    "webpack": "5.101.3",
+    "webpack-cli": "6.0.1",
+    "kotlin-web-helpers": "3.0.0",
+    "source-map-loader": "5.0.0",
+    "webpack-dev-server": "5.2.3"
+  },
+  "dependencies": {},
+  "peerDependencies": {},
+  "optionalDependencies": {},
+  "bundledDependencies": []
+}

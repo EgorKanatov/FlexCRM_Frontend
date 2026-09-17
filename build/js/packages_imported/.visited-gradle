@@ -1,0 +1,26 @@
+{
+  "version": "9",
+  "items": {
+    "cd71f817016025db97c289e0f6cf892b": {
+      "src": "/Users/egorkanatov/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib-js/2.4.10/cf6bff923d8fc2fefac01e83631ffc903f3bf819/kotlin-stdlib-js-2.4.10.klib"
+    },
+    "003da13253428179dfee2d100380bdc4": {
+      "src": "/Users/egorkanatov/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-dom-api-compat/2.4.10/f27924baa5adc795bc8f53796282ddf0af6f5c4d/kotlin-dom-api-compat-2.4.10.klib"
+    },
+    "5f5eeea1d8ac16ddd80fd503bb4e234c": {
+      "src": "/Users/egorkanatov/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-serialization-json-js/1.6.3/6fdf64da8d550723ae974a7becba5d1e33fc77b3/kotlinx-serialization-json-js-1.6.3.klib"
+    },
+    "a0654d7fd5c6ce2fd1744bb8b5b9e311": {
+      "src": "/Users/egorkanatov/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-serialization-core-js/1.6.3/e316fab0dc6dfc0a96feeacb4bee9049cd28f566/kotlinx-serialization-core-js-1.6.3.klib"
+    },
+    "5f460de879b1311463aa4ad821c02375": {
+      "src": "/Users/egorkanatov/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/kotlinx-coroutines-core-js/1.8.0/15c3b0e757e1e31196d82616f47e66df3ecd7d5b/kotlinx-coroutines-core-js-1.8.0.klib"
+    },
+    "ba8177ecda3981427862b37308d71b44": {
+      "src": "/Users/egorkanatov/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlinx/atomicfu-js/0.23.1/e19f377f0dc24137414f5f3e1be730f60aeb9539/atomicfu-js-0.23.1.klib"
+    },
+    "e9306c2451bbe8784372b11cb78554d0": {
+      "src": "/Users/egorkanatov/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlinx-atomicfu-runtime/1.9.21/373f8846d435f6e7f77453cefbb97c548ae4781e/kotlinx-atomicfu-runtime-1.9.21.klib"
+    }
+  }
+}
