@@ -1,0 +1,11 @@
+/build/
+.gradle/
+.kotlin/
+kotlin-js-store/
+.idea/
+*.iml
+.DS_Store
+dist/
+out/
+.gradle-cache/
+.artifacts/
