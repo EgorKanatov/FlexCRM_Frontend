@@ -5,6 +5,7 @@ import crm.api.ClientDto
 import crm.api.CrmRepository
 import crm.api.MockCrmRepository
 import crm.currentPage
+import crm.selectedClientId
 import crm.renderApp
 import crm.utils.*
 import kotlinx.browser.document
@@ -53,6 +54,7 @@ fun renderClients(): Element = div {
                         appendChild(tag("tr") {
                             appendChild(tag("td") {
                                 appendChild(button(client.name, "link-btn") {
+                                    selectedClientId = client.id
                                     currentPage = Page.PROFILE
                                     renderApp()
                                 })
