@@ -52,13 +52,24 @@
         .badge.blue { background: #eaf1ff; color: #2d73ff; }
         .badge.orange { background: #fff5dd; color: #a96d00; }
         .link-btn { border: 0; background: transparent; color: #2d73ff; padding: 0; cursor: pointer; }
-        .kanban { display: grid; grid-template-columns: repeat(5, minmax(200px, 1fr)); gap: 14px; overflow-x: auto; padding-bottom: 8px; }
-        .kanban-col { padding: 14px; min-height: 520px; background: #f8fafc; }
-        .col-title { font-weight: 800; margin-bottom: 4px; }
+        .kanban { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; align-items: flex-start; }
+        .kanban-col { flex: 0 0 260px; min-width: 240px; padding: 14px; min-height: 520px; background: #f8fafc; border-radius: 16px; border: 2px dashed transparent; transition: border-color 0.2s, background 0.2s; }
+        .kanban-col.drag-over { border-color: #2d73ff; background: #eef4ff; }
+        .col-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+        .col-title { font-weight: 800; font-size: 15px; word-break: break-word; }
+        .col-delete-btn { border: 0; background: transparent; color: #a0aec0; cursor: pointer; padding: 2px 6px; border-radius: 6px; font-size: 14px; }
+        .col-delete-btn:hover { color: #e53e3e; background: #fed7d7; }
         .col-meta { color: #8793a6; font-size: 12px; margin-bottom: 14px; }
-        .deal-card { background: #fff; border: 1px solid #e4e9f0; border-radius: 12px; padding: 13px; margin-bottom: 10px; }
+        .deal-card { background: #fff; border: 1px solid #e4e9f0; border-radius: 12px; padding: 13px; margin-bottom: 10px; cursor: grab; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
+        .deal-card:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+        .deal-card:active { cursor: grabbing; transform: scale(0.98); }
         .deal-card strong { display: block; margin-bottom: 6px; }
         .deal-meta { color: #7c899b; font-size: 12px; margin-top: 10px; }
+        .deal-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; pt: 8px; border-top: 1px solid #f0f4f8; }
+        .card-actions { display: flex; gap: 4px; }
+        .card-btn { border: 1px solid #e2e8f0; background: #f7fafc; border-radius: 6px; padding: 2px 7px; font-size: 12px; cursor: pointer; color: #4a5568; }
+        .card-btn:hover { background: #edf2f7; color: #2b6cb0; }
+        .card-btn.danger:hover { background: #fed7d7; color: #c53030; }
 
         /* --- Профиль клиента --- */
         .profile-head { display: flex; gap: 16px; align-items: center; margin-bottom: 24px; }

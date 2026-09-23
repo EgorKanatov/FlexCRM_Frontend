@@ -14,6 +14,9 @@ interface CrmRepository {
     suspend fun addTask(task: TaskDto): TaskDto
     suspend fun getFunnelStages(): List<String>
     suspend fun addFunnelStage(stage: String): String
+    suspend fun deleteFunnelStage(stage: String)
+    suspend fun updateDealStage(dealId: Long, newStage: String)
+    suspend fun deleteDeal(dealId: Long)
     suspend fun getSettings(): SettingsDto
     suspend fun updateSettings(settings: SettingsDto): SettingsDto
     suspend fun getClientNotes(clientId: Long): List<NoteDto>
@@ -150,8 +153,28 @@ object MockCrmRepository : CrmRepository {
 
     override suspend fun addFunnelStage(stage: String): String {
         delay(300)
-        mockFunnelStages.add(stage)
+        if (!mockFunnelStages.contains(stage)) {
+            mockFunnelStages.add(stage)
+        }
         return stage
+    }
+
+    override suspend fun deleteFunnelStage(stage: String) {
+        delay(200)
+        mockFunnelStages.remove(stage)
+    }
+
+    override suspend fun updateDealStage(dealId: Long, newStage: String) {
+        delay(100)
+        val index = mockDeals.indexOfFirst { it.id == dealId }
+        if (index != -1) {
+            mockDeals[index] = mockDeals[index].copy(stage = newStage)
+        }
+    }
+
+    override suspend fun deleteDeal(dealId: Long) {
+        delay(200)
+        mockDeals.removeAll { it.id == dealId }
     }
 
     override suspend fun getSettings(): SettingsDto {

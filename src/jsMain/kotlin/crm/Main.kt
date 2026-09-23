@@ -5,7 +5,7 @@ import crm.utils.*
 import kotlinx.browser.document
 import org.w3c.dom.Element
 
-enum class Page { DASHBOARD, CLIENTS, DEALS, PROFILE, TASKS, FUNNELS, SETTINGS }
+enum class Page { DASHBOARD, CLIENTS, DEALS, PROFILE, TASKS, SETTINGS }
 
 var currentPage = Page.DASHBOARD
 var selectedClientId: Long? = null
@@ -29,7 +29,6 @@ fun renderApp() {
                     Page.DEALS -> appendChild(renderDeals())
                     Page.PROFILE -> appendChild(renderProfile())
                     Page.TASKS -> appendChild(renderTasks())
-                    Page.FUNNELS -> appendChild(renderFunnels())
                     Page.SETTINGS -> appendChild(renderSettings())
                 }
             })
@@ -45,7 +44,6 @@ private fun sidebar(): Element = tag("aside", "sidebar") {
         appendChild(navButton("👥  Клиенты", Page.CLIENTS))
         appendChild(navButton("💼  Сделки", Page.DEALS))
         appendChild(navButton("✅  Задачи", Page.TASKS))
-        appendChild(navButton("🔻  Воронки", Page.FUNNELS))
         appendChild(navButton("⚙️  Настройки", Page.SETTINGS))
     })
 }
