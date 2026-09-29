@@ -27,8 +27,8 @@ var selectedClientId: Long? = null
 
 fun getAvailablePages(role: UserRole): List<Page> {
     return when (role) {
-        UserRole.ADMIN -> listOf(Page.DASHBOARD, Page.CLIENTS, Page.DEALS, Page.TASKS, Page.SETTINGS)
-        UserRole.MANAGER -> listOf(Page.DASHBOARD, Page.CLIENTS, Page.DEALS, Page.TASKS)
+        UserRole.ADMIN -> listOf(Page.DASHBOARD, Page.CLIENTS, Page.PROFILE, Page.DEALS, Page.TASKS, Page.SETTINGS)
+        UserRole.MANAGER -> listOf(Page.DASHBOARD, Page.CLIENTS, Page.PROFILE, Page.DEALS, Page.TASKS)
         UserRole.EMPLOYEE -> listOf(Page.TASKS)
     }
 }

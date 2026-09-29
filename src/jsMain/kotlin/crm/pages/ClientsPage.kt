@@ -1,9 +1,9 @@
 package crm.pages
 
 import crm.Page
+import crm.api.ApiCrmRepository
 import crm.api.ClientDto
 import crm.api.CrmRepository
-import crm.api.MockCrmRepository
 import crm.currentPage
 import crm.selectedClientId
 import crm.renderApp
@@ -15,7 +15,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.HTMLSelectElement
 
-private val repository: CrmRepository = MockCrmRepository
+private val repository: CrmRepository = ApiCrmRepository
 
 fun renderClients(): Element = div {
     val tableContainer = div()
@@ -36,46 +36,52 @@ fun renderClients(): Element = div {
     tableContainer.textContent = "Загрузка списка клиентов..."
 
     MainScope().launch {
-        val clients = repository.getClients()
-        tableContainer.innerHTML = ""
+        runCatching { repository.getClients() }
+            .onSuccess { clients ->
+                tableContainer.innerHTML = ""
 
-        tableContainer.appendChild(div("table-wrap") {
-            appendChild(tag("table") {
-                appendChild(tag("thead") {
-                    appendChild(tag("tr") {
-                        listOf("Имя", "Компания", "Телефон", "Email", "Статус", "Ответственный").forEach {
-                            appendChild(tag("th") { textContent = it })
-                        }
+                tableContainer.appendChild(div("table-wrap") {
+                    appendChild(tag("table") {
+                        appendChild(tag("thead") {
+                            appendChild(tag("tr") {
+                                listOf("Имя", "Компания", "Телефон", "Email", "Статус", "Ответственный").forEach {
+                                    appendChild(tag("th") { textContent = it })
+                                }
+                            })
+                        })
+
+                        appendChild(tag("tbody") {
+                            clients.forEach { client ->
+                                appendChild(tag("tr") {
+                                    appendChild(tag("td") {
+                                        appendChild(button(client.name, "link-btn") {
+                                            selectedClientId = client.id
+                                            currentPage = Page.PROFILE
+                                            renderApp()
+                                        })
+                                    })
+                                    appendChild(tag("td") { textContent = client.company })
+                                    appendChild(tag("td") { textContent = client.phone })
+                                    appendChild(tag("td") { textContent = client.email })
+                                    appendChild(tag("td") {
+                                        val badgeClass = when (client.status) {
+                                            "Лид" -> "badge blue"
+                                            "Потенциальный" -> "badge orange"
+                                            "Компания" -> "badge blue"
+                                            else -> "badge"
+                                        }
+                                        appendChild(tag("span", badgeClass) { textContent = client.status })
+                                    })
+                                    appendChild(tag("td") { textContent = client.responsibleUser })
+                                })
+                            }
+                        })
                     })
                 })
-
-                appendChild(tag("tbody") {
-                    clients.forEach { client ->
-                        appendChild(tag("tr") {
-                            appendChild(tag("td") {
-                                appendChild(button(client.name, "link-btn") {
-                                    selectedClientId = client.id
-                                    currentPage = Page.PROFILE
-                                    renderApp()
-                                })
-                            })
-                            appendChild(tag("td") { textContent = client.company })
-                            appendChild(tag("td") { textContent = client.phone })
-                            appendChild(tag("td") { textContent = client.email })
-                            appendChild(tag("td") {
-                                val badgeClass = when (client.status) {
-                                    "Лид" -> "badge blue"
-                                    "Потенциальный" -> "badge orange"
-                                    else -> "badge"
-                                }
-                                appendChild(tag("span", badgeClass) { textContent = client.status })
-                            })
-                            appendChild(tag("td") { textContent = client.responsibleUser })
-                        })
-                    }
-                })
-            })
-        })
+            }
+            .onFailure { error ->
+                tableContainer.textContent = "Не удалось загрузить клиентов: ${error.message ?: "проверьте API"}"
+            }
     }
 }
 

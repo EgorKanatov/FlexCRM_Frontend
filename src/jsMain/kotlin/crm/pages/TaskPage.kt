@@ -45,35 +45,68 @@ fun renderTasks(): Element = div {
                 })
             } else {
                 tasks.forEach { task ->
-                    appendChild(taskItem(task.title, task.deadline, task.priority))
+                    appendChild(taskItem(task) {
+                        renderApp()
+                    })
                 }
             }
         })
     }
 }
 
-private fun taskItem(title: String, deadline: String, priority: String) = div("task-row") {
+private fun taskItem(task: TaskDto, onDelete: () -> Unit) = div("task-row") {
     setAttribute("style", "display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee;")
 
     appendChild(div {
-        appendChild(tag("strong") { textContent = title })
+        appendChild(tag("strong") { textContent = task.title })
         appendChild(tag("br"))
-        appendChild(tag("span", "muted") { textContent = deadline })
+        appendChild(tag("span", "muted") { textContent = "Срок: ${task.deadline.replace("T", " ")} | Ответственный: ${task.assignee}" })
     })
 
-    val badgeClass = when (priority) {
-        "Высокий" -> "badge orange"
-        "Средний" -> "badge blue"
-        else -> "badge"
-    }
-    appendChild(tag("span", badgeClass) { textContent = priority })
+    appendChild(div {
+        setAttribute("style", "display: flex; align-items: center; gap: 12px;")
+        val badgeClass = when (task.priority) {
+            "Высокий" -> "badge orange"
+            "Средний" -> "badge blue"
+            else -> "badge"
+        }
+        appendChild(tag("span", badgeClass) { textContent = task.priority })
+
+        appendChild(button("Удалить", "secondary") {
+            if (window.confirm("Удалить задачу \"${task.title}\"?")) {
+                MainScope().launch {
+                    repository.deleteTask(task.id)
+                    onDelete()
+                }
+            }
+        }.apply {
+            setAttribute("style", "font-size: 11px; padding: 4px 8px; color: #e53e3e; border-color: #fed7d7;")
+        })
+    })
 }
 
 private fun showAddTaskModal(onSuccess: () -> Unit) {
     val root = document.getElementById("root") ?: return
 
-    val titleInput = (document.createElement("input") as HTMLInputElement).apply { className = "form-control"; placeholder = "Название задачи" }
-    val deadlineInput = (document.createElement("input") as HTMLInputElement).apply { className = "form-control"; placeholder = "Сегодня, 18:00" }
+    val titleInput = (document.createElement("input") as HTMLInputElement).apply {
+        className = "form-control"
+        placeholder = "Название задачи"
+    }
+
+    // Date & Time picker
+    val deadlineInput = (document.createElement("input") as HTMLInputElement).apply {
+        className = "form-control"
+        type = "datetime-local"
+    }
+
+    val assigneeSelect = (document.createElement("select") as HTMLSelectElement).apply {
+        className = "form-control"
+        innerHTML = """
+            <option value="Егор">Егор</option>
+            <option value="Булат">Булат</option>
+            <option value="Ярик">Ярик</option>
+        """.trimIndent()
+    }
 
     val prioritySelect = (document.createElement("select") as HTMLSelectElement).apply {
         className = "form-control"
@@ -92,7 +125,8 @@ private fun showAddTaskModal(onSuccess: () -> Unit) {
             appendChild(tag("h2") { textContent = "Новая задача" })
 
             appendChild(div("form-group") { appendChild(tag("label") { textContent = "Название *" }); appendChild(titleInput) })
-            appendChild(div("form-group") { appendChild(tag("label") { textContent = "Срок *" }); appendChild(deadlineInput) })
+            appendChild(div("form-group") { appendChild(tag("label") { textContent = "Дата и время выполнения *" }); appendChild(deadlineInput) })
+            appendChild(div("form-group") { appendChild(tag("label") { textContent = "Исполнитель *" }); appendChild(assigneeSelect) })
             appendChild(div("form-group") { appendChild(tag("label") { textContent = "Приоритет" }); appendChild(prioritySelect) })
 
             appendChild(div("modal-actions") {
@@ -109,7 +143,8 @@ private fun showAddTaskModal(onSuccess: () -> Unit) {
                         id = 0,
                         title = titleInput.value,
                         deadline = deadlineInput.value,
-                        priority = prioritySelect.value
+                        priority = prioritySelect.value,
+                        assignee = assigneeSelect.value
                     )
 
                     MainScope().launch {

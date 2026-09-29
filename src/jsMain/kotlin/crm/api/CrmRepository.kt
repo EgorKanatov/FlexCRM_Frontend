@@ -1,6 +1,11 @@
 package crm.api
 
+import kotlinx.browser.window
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.await
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlin.math.absoluteValue
 
 interface CrmRepository {
     suspend fun getClients(): List<ClientDto>
@@ -24,6 +29,10 @@ interface CrmRepository {
     suspend fun deleteNote(noteId: Long)
     suspend fun getClientComments(clientId: Long): List<CommentDto>
     suspend fun addComment(comment: CommentDto): CommentDto
+    suspend fun deleteTask(taskId: Long)
+    suspend fun getEmployees(): List<EmployeeDto>
+    suspend fun addEmployee(employee: EmployeeDto): EmployeeDto
+    suspend fun deleteEmployee(employeeId: Long)
 }
 
 data class DashboardStatsDto(
@@ -55,10 +64,16 @@ object MockCrmRepository : CrmRepository {
     )
 
     private val mockTasks = mutableListOf(
-        TaskDto(1, "Позвонить клиенту ООО Альфа", "Сегодня, 14:00", "Высокий"),
-        TaskDto(2, "Отправить договор ИП Сидоров", "Сегодня, 17:00", "Средний"),
-        TaskDto(3, "Подготовить презентацию для TechSoft", "Завтра, 10:00", "Средний"),
-        TaskDto(4, "Проверить документы", "13.09.2026", "Низкий")
+        TaskDto(1, "Позвонить клиенту ООО Альфа", "2026-09-15T14:00", "Высокий", "Егор"),
+        TaskDto(2, "Отправить договор ИП Сидоров", "2026-09-15T17:00", "Средний", "Булат"),
+        TaskDto(3, "Подготовить презентацию для TechSoft", "2026-09-16T10:00", "Средний", "Ярик"),
+        TaskDto(4, "Проверить документы", "2026-09-13T12:00", "Низкий", "Егор")
+    )
+
+    private val mockEmployees = mutableListOf(
+        EmployeeDto(1, "Егор Канатов", "admin@flexcrm.ru", "Владелец", "+7 900 111-22-33"),
+        EmployeeDto(2, "Булат", "bulat@flexcrm.ru", "Менеджер", "+7 900 222-33-44"),
+        EmployeeDto(3, "Ярик", "yarik@flexcrm.ru", "Менеджер", "+7 900 333-44-55")
     )
 
     private val mockFunnelStages = mutableListOf(
@@ -146,6 +161,28 @@ object MockCrmRepository : CrmRepository {
         return newTask
     }
 
+    override suspend fun deleteTask(taskId: Long) {
+        delay(200)
+        mockTasks.removeAll { it.id == taskId }
+    }
+
+    override suspend fun getEmployees(): List<EmployeeDto> {
+        delay(200)
+        return mockEmployees.toList()
+    }
+
+    override suspend fun addEmployee(employee: EmployeeDto): EmployeeDto {
+        delay(300)
+        val newEmp = employee.copy(id = (mockEmployees.size + 1).toLong())
+        mockEmployees.add(newEmp)
+        return newEmp
+    }
+
+    override suspend fun deleteEmployee(employeeId: Long) {
+        delay(200)
+        mockEmployees.removeAll { it.id == employeeId }
+    }
+
     override suspend fun getFunnelStages(): List<String> {
         delay(200)
         return mockFunnelStages.toList()
@@ -215,5 +252,60 @@ object MockCrmRepository : CrmRepository {
         val newComment = comment.copy(id = (mockComments.size + 1).toLong())
         mockComments.add(newComment)
         return newComment
+    }
+}
+
+object ApiCrmRepository : CrmRepository by MockCrmRepository {
+    private const val CLIENTS_URL = "/api/v1/clients"
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+    }
+
+    private var cachedClients: List<ClientDto> = emptyList()
+
+    override suspend fun getClients(): List<ClientDto> {
+        val response = window.fetch(CLIENTS_URL).await()
+        if (!response.ok) {
+            error("Не удалось загрузить клиентов: HTTP ${response.status}")
+        }
+
+        cachedClients = json.decodeFromString<List<ApiClientDto>>(response.text().await())
+            .map { it.toClientDto() }
+
+        return cachedClients
+    }
+
+    override suspend fun getClientById(id: Long): ClientDto? {
+        return cachedClients.find { it.id == id }
+            ?: getClients().find { it.id == id }
+    }
+
+    private fun ApiClientDto.toClientDto(): ClientDto {
+        val fullName = listOfNotNull(firstName, lastName)
+            .joinToString(" ")
+            .ifBlank { companyName ?: "Без имени" }
+
+        val responsibleName = responsible
+            ?.let { "${it.firstName} ${it.lastName}".trim() }
+            ?.ifBlank { "-" }
+            ?: "-"
+
+        return ClientDto(
+            id = id.toStableLongId(),
+            name = fullName,
+            company = companyName ?: if (clientType == "PERSON") "Частное лицо" else "-",
+            phone = phone ?: "-",
+            email = email ?: "-",
+            status = if (clientType == "COMPANY") "Компания" else "Физ. лицо",
+            responsibleUser = responsibleName
+        )
+    }
+
+    private fun String.toStableLongId(): Long {
+        return fold(1125899906842597L) { acc, char -> 31 * acc + char.code }
+            .absoluteValue
+            .takeIf { it != 0L }
+            ?: 1L
     }
 }

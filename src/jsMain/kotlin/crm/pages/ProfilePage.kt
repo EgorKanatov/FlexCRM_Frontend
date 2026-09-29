@@ -14,7 +14,7 @@ import org.w3c.dom.Element
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.HTMLTextAreaElement
 
-private val repository: CrmRepository = MockCrmRepository
+private val repository: CrmRepository = ApiCrmRepository
 
 fun renderProfile(): Element = div {
     val container = div()

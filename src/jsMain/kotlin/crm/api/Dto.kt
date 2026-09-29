@@ -17,6 +17,27 @@ data class ClientDto(
 )
 
 @Serializable
+data class ApiClientDto(
+    val id: String,
+    val clientType: String,
+    val firstName: String? = null,
+    val lastName: String? = null,
+    val companyName: String? = null,
+    val email: String? = null,
+    val phone: String? = null,
+    val responsible: ApiResponsibleDto? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null
+)
+
+@Serializable
+data class ApiResponsibleDto(
+    val id: String,
+    val firstName: String,
+    val lastName: String
+)
+
+@Serializable
 data class NoteDto(
     val id: Long,
     val clientId: Long,
@@ -49,7 +70,17 @@ data class TaskDto(
     val id: Long,
     val title: String,
     val deadline: String,
-    val priority: String
+    val priority: String,
+    val assignee: String = "Егор"
+)
+
+@Serializable
+data class EmployeeDto(
+    val id: Long,
+    val name: String,
+    val email: String,
+    val role: String,
+    val phone: String
 )
 
 @Serializable
