@@ -14,7 +14,8 @@ fun renderDashboard(): Element = div {
 
     appendChild(div("page-head") {
         appendChild(div {
-            appendChild(tag("h1") { textContent = "Добро пожаловать, Егор!" })
+            val userName = crm.currentUser?.name ?: "пользователь"
+            appendChild(tag("h1") { textContent = "Добро пожаловать, $userName!" })
             appendChild(div("muted") { textContent = "Вот что происходит в вашей компании сегодня." })
         })
         appendChild(div("muted") { textContent = "11 сентября 2026" })
