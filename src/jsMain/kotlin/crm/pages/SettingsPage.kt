@@ -20,37 +20,38 @@ private val repository: CrmRepository = MockCrmRepository
 fun renderSettings(): Element = div {
     val nameInput = (document.createElement("input") as HTMLInputElement).apply { className = "form-control" }
     val emailInput = (document.createElement("input") as HTMLInputElement).apply { className = "form-control" }
-    val notifyEmailInput = (document.createElement("input") as HTMLInputElement).apply { type = "checkbox" }
-    val notifyTelegramInput = (document.createElement("input") as HTMLInputElement).apply { type = "checkbox" }
-
-    val employeesContainer = div()
+    val employeesContainer = div().apply { textContent = "Загрузка сотрудников..." }
 
     appendChild(div("page-head") {
         appendChild(div {
             appendChild(tag("h1") { textContent = "Настройки" })
             appendChild(div("muted") { textContent = "Конфигурация системы и управление персоналом" })
         })
-        appendChild(button("Сохранить", "primary") {
+        appendChild(button("Сохранить изменения", "primary") {
             val updated = SettingsDto(
                 name = nameInput.value,
-                email = emailInput.value,
-                notifyEmail = notifyEmailInput.checked,
-                notifyTelegram = notifyTelegramInput.checked
+                email = emailInput.value
             )
             MainScope().launch {
-                repository.updateSettings(updated)
-                window.alert("Сохранено!")
+                runCatching { repository.updateSettings(updated) }
+                    .onSuccess {
+                        window.alert("Изменения сохранены")
+                    }
+                    .onFailure { error -> window.alert(error.message ?: "Не удалось сохранить настройки") }
             }
         })
     })
 
-    appendChild(div {
-        setAttribute("style", "display: flex; gap: 24px; margin-bottom: 24px;")
+    appendChild(div("settings-account panel") {
+        appendChild(div("settings-section-heading") {
+            appendChild(div("settings-section-icon") { textContent = "П" })
+            appendChild(div {
+                appendChild(tag("h3") { textContent = "Профиль аккаунта" })
+                appendChild(div("muted") { textContent = "Имя и контактный адрес владельца аккаунта" })
+            })
+        })
 
-        appendChild(div("panel") {
-            setAttribute("style", "flex: 1;")
-            appendChild(tag("h3") { textContent = "Личные данные" })
-
+        appendChild(div("settings-fields") {
             appendChild(div("form-group") {
                 appendChild(tag("label") { textContent = "Имя" })
                 appendChild(nameInput)
@@ -60,31 +61,19 @@ fun renderSettings(): Element = div {
                 appendChild(emailInput)
             })
         })
-
-        appendChild(div("panel") {
-            setAttribute("style", "flex: 1;")
-            appendChild(tag("h3") { textContent = "Уведомления" })
-
-            appendChild(div("form-group") {
-                appendChild(tag("label") {
-                    appendChild(notifyEmailInput)
-                    appendChild(tag("span") { textContent = " Email о новых задачах" })
-                })
-            })
-            appendChild(div("form-group") {
-                appendChild(tag("label") {
-                    appendChild(notifyTelegramInput)
-                    appendChild(tag("span") { textContent = " Уведомления в Telegram" })
-                })
-            })
-        })
     })
 
     // Employee management section (visible for admin)
     if (currentUser?.role?.name == "ADMIN") {
-        appendChild(div("panel") {
-            appendChild(div("page-head") {
-                appendChild(tag("h3") { textContent = "Управление сотрудниками и менеджерами" })
+        appendChild(div("settings-team") {
+            appendChild(div("settings-team-heading") {
+                appendChild(div("settings-section-heading") {
+                    appendChild(div("settings-section-icon team-icon") { textContent = "К" })
+                    appendChild(div {
+                        appendChild(tag("h3") { textContent = "Команда" })
+                        appendChild(div("muted") { textContent = "Сотрудники, менеджеры и их доступ к системе" })
+                    })
+                })
                 appendChild(button("+ Добавить сотрудника", "primary") {
                     showAddEmployeeModal {
                         renderApp()
@@ -99,8 +88,6 @@ fun renderSettings(): Element = div {
         val settings = repository.getSettings()
         nameInput.value = settings.name
         emailInput.value = settings.email
-        notifyEmailInput.checked = settings.notifyEmail
-        notifyTelegramInput.checked = settings.notifyTelegram
 
         if (currentUser?.role?.name == "ADMIN") {
             val employees = repository.getEmployees()
@@ -109,35 +96,44 @@ fun renderSettings(): Element = div {
             if (employees.isEmpty()) {
                 employeesContainer.appendChild(div("muted") { textContent = "Нет зарегистрированных сотрудников" })
             } else {
-                employeesContainer.appendChild(tag("table") {
-                    appendChild(tag("thead") {
-                        appendChild(tag("tr") {
-                            listOf("Имя", "Email", "Должность", "Телефон", "Действия").forEach {
-                                appendChild(tag("th") { textContent = it })
-                            }
-                        })
-                    })
-                    appendChild(tag("tbody") {
-                        employees.forEach { emp ->
+                employeesContainer.appendChild(div("table-wrap") {
+                    appendChild(tag("table") {
+                        appendChild(tag("thead") {
                             appendChild(tag("tr") {
-                                appendChild(tag("td") { textContent = emp.name })
-                                appendChild(tag("td") { textContent = emp.email })
-                                appendChild(tag("td") { textContent = emp.role })
-                                appendChild(tag("td") { textContent = emp.phone })
-                                appendChild(tag("td") {
-                                    appendChild(button("Удалить", "secondary") {
-                                        if (window.confirm("Удалить сотрудника ${emp.name}?")) {
-                                            MainScope().launch {
-                                                repository.deleteEmployee(emp.id)
-                                                renderApp()
-                                            }
+                                listOf("Имя", "Email", "Должность", "Телефон", "Действия").forEach {
+                                    appendChild(tag("th") { textContent = it })
+                                }
+                            })
+                        })
+                        appendChild(tag("tbody") {
+                            employees.forEach { emp ->
+                                appendChild(tag("tr") {
+                                    appendChild(tag("td") { textContent = emp.name })
+                                    appendChild(tag("td") { textContent = emp.email })
+                                    appendChild(tag("td") { textContent = emp.role })
+                                    appendChild(tag("td") { textContent = emp.phone })
+                                    appendChild(tag("td") {
+                                        val protectedAccount = emp.role.contains("Администратор", ignoreCase = true) ||
+                                            emp.role.contains("Владелец", ignoreCase = true) ||
+                                            emp.email.equals(currentUser?.email, ignoreCase = true)
+                                        if (protectedAccount) {
+                                            appendChild(tag("span", "badge blue") { textContent = "Защищённая учётная запись" })
+                                        } else {
+                                            appendChild(button("Удалить", "secondary") {
+                                                if (window.confirm("Удалить сотрудника ${emp.name}?")) {
+                                                    MainScope().launch {
+                                                        repository.deleteEmployee(emp.id)
+                                                        renderApp()
+                                                    }
+                                                }
+                                            }.apply {
+                                                setAttribute("style", "font-size: 11px; padding: 4px 8px; color: #e53e3e; border-color: #fed7d7;")
+                                            })
                                         }
-                                    }.apply {
-                                        setAttribute("style", "font-size: 11px; padding: 4px 8px; color: #e53e3e; border-color: #fed7d7;")
                                     })
                                 })
-                            })
-                        }
+                            }
+                        })
                     })
                 })
             }
@@ -156,7 +152,6 @@ private fun showAddEmployeeModal(onSuccess: () -> Unit) {
         innerHTML = """
             <option value="Менеджер">Менеджер</option>
             <option value="Сотрудник">Сотрудник</option>
-            <option value="Администратор">Администратор</option>
         """.trimIndent()
     }
 
@@ -191,9 +186,14 @@ private fun showAddEmployeeModal(onSuccess: () -> Unit) {
                     )
 
                     MainScope().launch {
-                        repository.addEmployee(newEmp)
-                        root.removeChild(modalBackdrop)
-                        onSuccess()
+                        runCatching { repository.addEmployee(newEmp) }
+                            .onSuccess {
+                                root.removeChild(modalBackdrop)
+                                onSuccess()
+                            }
+                            .onFailure { error ->
+                                window.alert(error.message ?: "Не удалось создать сотрудника")
+                            }
                     }
                 })
             })

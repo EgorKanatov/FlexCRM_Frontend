@@ -17,6 +17,7 @@ interface CrmRepository {
     suspend fun addDeal(deal: DealDto): DealDto
     suspend fun getTasks(): List<TaskDto>
     suspend fun addTask(task: TaskDto): TaskDto
+    suspend fun updateTask(task: TaskDto)
     suspend fun getFunnelStages(): List<String>
     suspend fun addFunnelStage(stage: String): String
     suspend fun deleteFunnelStage(stage: String)
@@ -31,6 +32,7 @@ interface CrmRepository {
     suspend fun addComment(comment: CommentDto): CommentDto
     suspend fun deleteTask(taskId: Long)
     suspend fun getEmployees(): List<EmployeeDto>
+    suspend fun getTaskAssignees(): List<EmployeeDto>
     suspend fun addEmployee(employee: EmployeeDto): EmployeeDto
     suspend fun deleteEmployee(employeeId: Long)
 }
@@ -64,10 +66,10 @@ object MockCrmRepository : CrmRepository {
     )
 
     private val mockTasks = mutableListOf(
-        TaskDto(1, "Позвонить клиенту ООО Альфа", "2026-09-15T14:00", "Высокий", "Егор"),
+        TaskDto(1, "Позвонить клиенту ООО Альфа", "2026-09-15T14:00", "Высокий", "Булат"),
         TaskDto(2, "Отправить договор ИП Сидоров", "2026-09-15T17:00", "Средний", "Булат"),
         TaskDto(3, "Подготовить презентацию для TechSoft", "2026-09-16T10:00", "Средний", "Ярик"),
-        TaskDto(4, "Проверить документы", "2026-09-13T12:00", "Низкий", "Егор")
+        TaskDto(4, "Проверить документы", "2026-09-13T12:00", "Низкий", "Ярик")
     )
 
     private val mockEmployees = mutableListOf(
@@ -82,9 +84,7 @@ object MockCrmRepository : CrmRepository {
 
     private var mockSettings = SettingsDto(
         name = "Егор Канатов",
-        email = "admin@flexcrm.ru",
-        notifyEmail = true,
-        notifyTelegram = true
+        email = "admin@flexcrm.ru"
     )
 
     private val mockNotes = mutableListOf(
@@ -161,6 +161,12 @@ object MockCrmRepository : CrmRepository {
         return newTask
     }
 
+    override suspend fun updateTask(task: TaskDto) {
+        delay(200)
+        val index = mockTasks.indexOfFirst { it.id == task.id }
+        if (index != -1) mockTasks[index] = task
+    }
+
     override suspend fun deleteTask(taskId: Long) {
         delay(200)
         mockTasks.removeAll { it.id == taskId }
@@ -171,7 +177,13 @@ object MockCrmRepository : CrmRepository {
         return mockEmployees.toList()
     }
 
+    override suspend fun getTaskAssignees(): List<EmployeeDto> {
+        delay(150)
+        return mockEmployees.filterNot { it.isAdministrator() }
+    }
+
     override suspend fun addEmployee(employee: EmployeeDto): EmployeeDto {
+        require(!employee.isAdministrator()) { "Нельзя создать дополнительную учётную запись администратора" }
         delay(300)
         val newEmp = employee.copy(id = (mockEmployees.size + 1).toLong())
         mockEmployees.add(newEmp)
@@ -180,7 +192,7 @@ object MockCrmRepository : CrmRepository {
 
     override suspend fun deleteEmployee(employeeId: Long) {
         delay(200)
-        mockEmployees.removeAll { it.id == employeeId }
+        mockEmployees.removeAll { it.id == employeeId && !it.isAdministrator() }
     }
 
     override suspend fun getFunnelStages(): List<String> {
@@ -254,6 +266,9 @@ object MockCrmRepository : CrmRepository {
         return newComment
     }
 }
+
+private fun EmployeeDto.isAdministrator(): Boolean =
+    role.contains("администратор", ignoreCase = true) || role.contains("владелец", ignoreCase = true)
 
 object ApiCrmRepository : CrmRepository by MockCrmRepository {
     private const val CLIENTS_URL = "/api/v1/clients"

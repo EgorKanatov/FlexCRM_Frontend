@@ -86,7 +86,5 @@ data class EmployeeDto(
 @Serializable
 data class SettingsDto(
     val name: String,
-    val email: String,
-    val notifyEmail: Boolean,
-    val notifyTelegram: Boolean
+    val email: String
 )

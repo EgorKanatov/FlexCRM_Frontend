@@ -1,6 +1,7 @@
 package crm.pages
 
 import crm.api.CrmRepository
+import crm.api.EmployeeDto
 import crm.api.MockCrmRepository
 import crm.api.TaskDto
 import crm.renderApp
@@ -24,8 +25,15 @@ fun renderTasks(): Element = div {
             appendChild(div("muted") { textContent = "Список дел и поручений" })
         })
         appendChild(button("+ Добавить задачу", "primary") {
-            showAddTaskModal {
-                renderApp()
+            MainScope().launch {
+                val assignees = repository.getTaskAssignees()
+                if (assignees.isEmpty()) {
+                    window.alert("Нет сотрудников, которым можно назначить задачу")
+                } else {
+                    showAddTaskModal(assignees) {
+                        renderApp()
+                    }
+                }
             }
         })
     })
@@ -35,6 +43,7 @@ fun renderTasks(): Element = div {
 
     MainScope().launch {
         val tasks = repository.getTasks()
+        val assignees = repository.getTaskAssignees()
         listContainer.innerHTML = ""
 
         listContainer.appendChild(div("panel") {
@@ -45,7 +54,7 @@ fun renderTasks(): Element = div {
                 })
             } else {
                 tasks.forEach { task ->
-                    appendChild(taskItem(task) {
+                    appendChild(taskItem(task, assignees) {
                         renderApp()
                     })
                 }
@@ -54,13 +63,34 @@ fun renderTasks(): Element = div {
     }
 }
 
-private fun taskItem(task: TaskDto, onDelete: () -> Unit) = div("task-row") {
+private fun taskItem(task: TaskDto, assignees: List<EmployeeDto>, onDelete: () -> Unit) = div("task-row") {
     setAttribute("style", "display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee;")
 
     appendChild(div {
         appendChild(tag("strong") { textContent = task.title })
         appendChild(tag("br"))
-        appendChild(tag("span", "muted") { textContent = "Срок: ${task.deadline.replace("T", " ")} | Ответственный: ${task.assignee}" })
+        appendChild(tag("span", "muted") { textContent = "Срок: ${task.deadline.replace("T", " ")}" })
+        val assigneeSelect = (document.createElement("select") as HTMLSelectElement).apply {
+            className = "form-control task-assignee"
+            title = "Переназначить ответственного"
+            assignees.forEach { employee ->
+                val option = document.createElement("option")
+                option.textContent = employee.name
+                option.setAttribute("value", employee.name)
+                appendChild(option)
+            }
+            value = task.assignee
+            addEventListener("change", {
+                MainScope().launch {
+                    repository.updateTask(task.copy(assignee = value))
+                    onDelete()
+                }
+            })
+        }
+        appendChild(div("task-assignee-control") {
+            appendChild(tag("span", "muted") { textContent = "Ответственный" })
+            appendChild(assigneeSelect)
+        })
     })
 
     appendChild(div {
@@ -85,7 +115,7 @@ private fun taskItem(task: TaskDto, onDelete: () -> Unit) = div("task-row") {
     })
 }
 
-private fun showAddTaskModal(onSuccess: () -> Unit) {
+private fun showAddTaskModal(assignees: List<EmployeeDto>, onSuccess: () -> Unit) {
     val root = document.getElementById("root") ?: return
 
     val titleInput = (document.createElement("input") as HTMLInputElement).apply {
@@ -101,11 +131,12 @@ private fun showAddTaskModal(onSuccess: () -> Unit) {
 
     val assigneeSelect = (document.createElement("select") as HTMLSelectElement).apply {
         className = "form-control"
-        innerHTML = """
-            <option value="Егор">Егор</option>
-            <option value="Булат">Булат</option>
-            <option value="Ярик">Ярик</option>
-        """.trimIndent()
+        assignees.forEach { employee ->
+            val option = document.createElement("option")
+            option.textContent = employee.name
+            option.setAttribute("value", employee.name)
+            appendChild(option)
+        }
     }
 
     val prioritySelect = (document.createElement("select") as HTMLSelectElement).apply {
