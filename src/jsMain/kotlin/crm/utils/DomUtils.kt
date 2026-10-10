@@ -19,4 +19,9 @@ fun button(text: String, cssClass: String = "", onClick: () -> Unit): HTMLButton
         onclick = { onClick() }
     }
 
-fun money(value: Int): String = value.toString().reversed().chunked(3).joinToString(" ").reversed() + " ₽"
+fun money(value: Number): String {
+    val amount = value.toDouble()
+    val whole = amount.toLong().toString().reversed().chunked(3).joinToString(" ").reversed()
+    val fraction = (kotlin.math.round(kotlin.math.abs(amount) * 100).toLong() % 100).toInt()
+    return if (fraction == 0) "$whole ₽" else "$whole,${fraction.toString().padStart(2, '0')} ₽"
+}

@@ -1,11 +1,6 @@
 package crm.api
 
-import kotlinx.browser.window
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.await
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
-import kotlin.math.absoluteValue
 
 interface CrmRepository {
     suspend fun getClients(): List<ClientDto>
@@ -54,15 +49,15 @@ object MockCrmRepository : CrmRepository {
     )
 
     private val mockDeals = mutableListOf(
-        DealDto(1, "Разработка сайта", "ООО Ромашка", 120_000, "Иван Петров", "Новый лид", "12.09.2026"),
-        DealDto(2, "Аудит", "ИП Сидоров", 80_000, "Алексей Сидоров", "Новый лид", "11.09.2026"),
-        DealDto(3, "Поставка ПО", "ООО Техно", 220_000, "Дмитрий Козлов", "Новый лид", "10.09.2026"),
-        DealDto(4, "Консультация", "ИП Петров", 150_000, "Петр Петров", "Контакт установлен", "10.09.2026"),
-        DealDto(5, "Лицензии", "ООО Вектор", 130_000, "Анна Смирнова", "Контакт установлен", "09.09.2026"),
-        DealDto(6, "Внедрение CRM", "TechSoft", 240_000, "Дмитрий Козлов", "Переговоры", "12.09.2026"),
-        DealDto(7, "Серверы", "ООО Бета", 80_000, "Ольга Волкова", "Переговоры", "11.09.2026"),
-        DealDto(8, "Поддержка", "ООО Альфа", 120_000, "Иван Петров", "Договор", "10.09.2026"),
-        DealDto(9, "Доработка", "ООО Гамма", 240_000, "Мария Кузнецова", "Успех", "08.09.2026")
+        DealDto(1, "Разработка сайта", "ООО Ромашка", 120_000.0, "Иван Петров", "Новый лид", "12.09.2026"),
+        DealDto(2, "Аудит", "ИП Сидоров", 80_000.0, "Алексей Сидоров", "Новый лид", "11.09.2026"),
+        DealDto(3, "Поставка ПО", "ООО Техно", 220_000.0, "Дмитрий Козлов", "Новый лид", "10.09.2026"),
+        DealDto(4, "Консультация", "ИП Петров", 150_000.0, "Петр Петров", "Контакт установлен", "10.09.2026"),
+        DealDto(5, "Лицензии", "ООО Вектор", 130_000.0, "Анна Смирнова", "Контакт установлен", "09.09.2026"),
+        DealDto(6, "Внедрение CRM", "TechSoft", 240_000.0, "Дмитрий Козлов", "Переговоры", "12.09.2026"),
+        DealDto(7, "Серверы", "ООО Бета", 80_000.0, "Ольга Волкова", "Переговоры", "11.09.2026"),
+        DealDto(8, "Поддержка", "ООО Альфа", 120_000.0, "Иван Петров", "Договор", "10.09.2026"),
+        DealDto(9, "Доработка", "ООО Гамма", 240_000.0, "Мария Кузнецова", "Успех", "08.09.2026")
     )
 
     private val mockTasks = mutableListOf(
@@ -271,56 +266,107 @@ private fun EmployeeDto.isAdministrator(): Boolean =
     role.contains("администратор", ignoreCase = true) || role.contains("владелец", ignoreCase = true)
 
 object ApiCrmRepository : CrmRepository by MockCrmRepository {
-    private const val CLIENTS_URL = "/api/v1/clients"
+    private val api: FlexCrmApi
+        get() = FlexCrmApiProvider.client
 
-    private val json = Json {
-        ignoreUnknownKeys = true
-    }
-
-    private var cachedClients: List<ClientDto> = emptyList()
-
-    override suspend fun getClients(): List<ClientDto> {
-        val response = window.fetch(CLIENTS_URL).await()
-        if (!response.ok) {
-            error("Не удалось загрузить клиентов: HTTP ${response.status}")
-        }
-
-        cachedClients = json.decodeFromString<List<ApiClientDto>>(response.text().await())
-            .map { it.toClientDto() }
-
-        return cachedClients
-    }
+    override suspend fun getClients(): List<ClientDto> = api.getClients().body.map { it.toClientDto() }
 
     override suspend fun getClientById(id: Long): ClientDto? {
-        return cachedClients.find { it.id == id }
-            ?: getClients().find { it.id == id }
+        val client = api.getClients().body.firstOrNull { it.id.toLocalId() == id } ?: return null
+        return api.getClientById(client.id).body.toClientDto()
     }
 
-    private fun ApiClientDto.toClientDto(): ClientDto {
-        val fullName = listOfNotNull(firstName, lastName)
-            .joinToString(" ")
-            .ifBlank { companyName ?: "Без имени" }
+    override suspend fun getDeals(): List<DealDto> = api.getDealsBoard().body.pipelines.flatMap { pipeline ->
+        pipeline.stages.flatMap { stage ->
+            stage.deals.map { deal ->
+                DealDto(
+                    id = deal.id.toLocalId(),
+                    title = deal.title,
+                    company = deal.client.companyName ?: "${deal.client.firstName} ${deal.client.lastName}".trim(),
+                    amount = deal.amount ?: 0.0,
+                    responsibleUser = deal.responsibleUserName ?: "-",
+                    stage = stage.name,
+                    date = deal.expectedCloseAt?.substringBefore('T') ?: "-"
+                )
+            }
+        }
+    }
 
-        val responsibleName = responsible
-            ?.let { "${it.firstName} ${it.lastName}".trim() }
-            ?.ifBlank { "-" }
-            ?: "-"
-
-        return ClientDto(
-            id = id.toStableLongId(),
-            name = fullName,
-            company = companyName ?: if (clientType == "PERSON") "Частное лицо" else "-",
-            phone = phone ?: "-",
-            email = email ?: "-",
-            status = if (clientType == "COMPANY") "Компания" else "Физ. лицо",
-            responsibleUser = responsibleName
+    override suspend fun getDashboardStats(): DashboardStatsDto {
+        val overview = api.getGeneralInformation().body
+        val deals = getDeals()
+        return DashboardStatsDto(
+            clientsCount = overview.countClients,
+            dealsCount = overview.countOfAllDeals,
+            activeDealsCount = deals.count { it.stage != "Успех" },
+            tasksTodayCount = overview.countTasks
         )
     }
 
-    private fun String.toStableLongId(): Long {
-        return fold(1125899906842597L) { acc, char -> 31 * acc + char.code }
-            .absoluteValue
-            .takeIf { it != 0L }
-            ?: 1L
+    override suspend fun getFunnelStages(): List<String> {
+        val pipeline = api.getPipelines().body.firstOrNull() ?: return emptyList()
+        return api.getPipelineStages(pipeline.id).body.sortedBy { it.position }.map { it.name }
     }
+
+    override suspend fun getTaskAssignees(): List<EmployeeDto> = api.getUsers().body.map {
+        EmployeeDto(it.id.toLocalId(), listOf(it.firstName, it.lastName).filter(String::isNotBlank).joinToString(" "), "-", "Сотрудник", "-")
+    }
+
+    override suspend fun addDeal(deal: DealDto): DealDto {
+        val clients = api.getClients().body
+        val client = clients.firstOrNull { it.companyName == deal.company }
+            ?: clients.firstOrNull { "${it.firstName} ${it.lastName}".trim() == deal.company }
+            ?: error("Выберите клиента из списка")
+        val users = api.getUsers().body
+        val owner = users.firstOrNull { "${it.firstName} ${it.lastName}".trim() == deal.responsibleUser }
+            ?: users.firstOrNull { it.firstName == deal.responsibleUser }
+            ?: error("Выберите ответственного сотрудника из списка")
+        val pipeline = api.getPipelines().body.firstOrNull() ?: error("Нет доступных воронок")
+        val stage = api.getPipelineStages(pipeline.id).body.firstOrNull { it.name == deal.stage }
+            ?: error("Выберите стадию из списка")
+
+        val created = api.createDeal(ApiCreateDealRequest(
+            title = deal.title,
+            clientId = client.id,
+            responsibleUserId = owner.id,
+            pipelineId = pipeline.id,
+            stageId = stage.id,
+            amount = deal.amount
+        )).body
+        return DealDto(
+            id = created.id.toLocalId(),
+            title = created.title,
+            company = client.companyName ?: "${client.firstName} ${client.lastName}".trim(),
+            amount = created.amount,
+            responsibleUser = "${owner.firstName} ${owner.lastName}".trim(),
+            stage = stage.name,
+            date = created.createdAt.substringBefore('T')
+        )
+    }
+
+    private fun ApiClientListItem.toClientDto() = ClientDto(
+        id = id.toLocalId(),
+        name = listOf(firstName, lastName).filter(String::isNotBlank).joinToString(" "),
+        company = companyName ?: "Частное лицо",
+        phone = phone ?: "-",
+        email = email ?: "-",
+        status = if (clientType == "COMPANY") "Компания" else "Физ. лицо",
+        responsibleUser = responsibleUserName ?: "-"
+    )
+
+    private fun ApiClientDetail.toClientDto() = ApiClientListItem(
+        id = id,
+        clientType = clientType,
+        firstName = firstName,
+        lastName = lastName,
+        companyName = companyName,
+        email = email,
+        phone = phone,
+        responsibleUserName = responsibleUserName
+    ).toClientDto().copy(
+        position = description ?: "Менеджер",
+        tags = tags
+    )
+
+    private fun String.toLocalId(): Long = substringAfterLast('-').toLongOrNull() ?: 0L
 }

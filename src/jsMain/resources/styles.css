@@ -29,8 +29,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .nav-item:hover { background: rgba(255,255,255,.09); }
 .nav-item.active { color: #163c3b; background: #a9e8d6; box-shadow: none; }
 .main { min-width: 0; }
-.topbar { height: 76px; padding: 0 36px; border-color: var(--line); background: rgba(255,255,255,.92); }
-.search { width: min(440px, 45vw); border-color: var(--line); border-radius: 8px; background: #f7faf9; padding: 11px 14px; }
+.topbar { height: 76px; padding: 0 36px; border-color: var(--line); background: rgba(255,255,255,.92); justify-content: flex-end; }
 .user { gap: 12px; }
 .avatar { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 10px; background: #e0f3ef; color: #087f72; }
 .content { width: 100%; max-width: 1640px; margin: 0 auto; padding: 34px 36px 56px; }
@@ -96,6 +95,13 @@ h1 { color: var(--ink); font-size: 27px; font-weight: 750; letter-spacing: 0; }
 .dashboard-empty, .dashboard-load-error { padding: 30px 14px; color: #74838a; font-size: 12px; text-align: center; }
 .dashboard-load-error { border: 1px solid #f0d8d3; border-radius: 8px; background: #fff8f6; }
 .dashboard-load-error strong { display: block; margin-bottom: 6px; color: #a1483b; }
+.dashboard-activities { margin-top: 14px; }
+.dashboard-activity-row { display: flex; align-items: center; gap: 11px; min-height: 54px; padding: 9px 0; border-top: 1px solid #edf1f0; }
+.dashboard-activity-mark { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; border-radius: 8px; background: #edf4f2; color: #397b6d; font-size: 11px; font-weight: 750; }
+.dashboard-activity-main { min-width: 0; flex: 1; }
+.dashboard-activity-main strong { color: #344b50; font-size: 12px; }
+.dashboard-activity-main .muted { margin-top: 3px; font-size: 10px; }
+.dashboard-activity-time { flex: 0 0 auto; color: #7c898b; font-size: 10px; }
 .stat { position: relative; overflow: hidden; padding: 19px 20px; }
 .stat::after { position: absolute; content: ""; top: 0; left: 0; width: 3px; height: 100%; background: #4db69e; }
 .stat-label { font-size: 12px; font-weight: 600; }
@@ -190,6 +196,8 @@ tbody tr:hover { background: #f7fbfa; }
 .auth-card { position: relative; border-radius: 10px; padding: 34px; box-shadow: 0 24px 60px rgba(6,27,28,.26); }
 .auth-card h2 { color: #163c3b; }
 .auth-card .primary { border-radius: 8px; }
+.auth-mode-toggle { display: block; margin: 16px auto 0; padding: 5px; border: 0; background: transparent; color: #087f72; font-size: 12px; font-weight: 650; }
+.auth-mode-toggle:hover { color: #055d54; text-decoration: underline; }
 .role-option { border-radius: 8px; }
 .role-option:hover { border-color: #79bdb0; background: #f4faf8; }
 
@@ -210,7 +218,6 @@ tbody tr:hover { background: #f7fbfa; }
   .nav { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
   .nav-item { flex: 0 0 auto; min-height: 38px; padding: 8px 10px; font-size: 12px; white-space: nowrap; }
   .topbar { height: auto; min-height: 64px; padding: 10px 16px; gap: 10px; }
-  .search { min-width: 0; width: 42%; padding: 9px 10px; }
   .user { gap: 7px; }
   .user strong { max-width: 112px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
   .user .muted { max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
@@ -227,6 +234,8 @@ tbody tr:hover { background: #f7fbfa; }
   .dashboard-panel-head { align-items: flex-start; }
   .dashboard-task-row { gap: 8px; }
   .dashboard-task-main > strong { white-space: normal; }
+  .dashboard-activity-row { align-items: flex-start; }
+  .dashboard-activity-time { max-width: 92px; text-align: right; }
   .page-head { align-items: flex-start; flex-direction: column; gap: 14px; margin-bottom: 20px; }
   .page-head > button, .page-head > div:last-child:not(:first-child) { align-self: stretch; }
   .page-head > div:last-child > button { flex: 1; }
@@ -253,7 +262,6 @@ tbody tr:hover { background: #f7fbfa; }
 
 @media (max-width: 390px) {
   .user > div:nth-child(2) { display: none; }
-  .search { width: 48%; }
   .grid-4 { grid-template-columns: 1fr; }
   .dashboard-stats { grid-template-columns: 1fr; }
   .dashboard-panel-head { flex-direction: column; }

@@ -1,8 +1,10 @@
 package crm.pages
 
 import crm.Page
+import crm.api.ApiGeneralActivity
 import crm.api.CrmRepository
-import crm.api.MockCrmRepository
+import crm.api.ApiCrmRepository
+import crm.api.FlexCrmApiProvider
 import crm.currentPage
 import crm.currentUser
 import crm.renderApp
@@ -11,7 +13,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.Element
 
-private val repository: CrmRepository = MockCrmRepository
+private val repository: CrmRepository = ApiCrmRepository
 
 fun renderDashboard(): Element = div("dashboard-page") {
     val overview = div("dashboard-content")
@@ -35,17 +37,18 @@ fun renderDashboard(): Element = div("dashboard-page") {
 
     MainScope().launch {
         runCatching {
-            val stats = repository.getDashboardStats()
+            val general = FlexCrmApiProvider.client.getGeneralInformation(5).body
             val tasks = repository.getTasks().sortedBy { it.deadline }
             val deals = repository.getDeals()
             val stages = repository.getFunnelStages()
 
             overview.innerHTML = ""
             overview.appendChild(div("dashboard-stats") {
-                appendChild(stat("Клиентская база", stats.clientsCount.toString(), "контактов", "◉", "mint"))
-                appendChild(stat("Все сделки", stats.dealsCount.toString(), "в воронке", "↗", "blue"))
-                appendChild(stat("В работе", stats.activeDealsCount.toString(), "${stats.dealsCount - stats.activeDealsCount} закрыто", "◷", "amber"))
-                appendChild(stat("Задачи", tasks.size.toString(), "назначено команде", "✓", "coral"))
+                val closedDeals = general.countOfAllDeals - deals.count { it.stage != "Успех" }
+                appendChild(stat("Клиентская база", general.countClients.toString(), "контактов", "◉", "mint"))
+                appendChild(stat("Все сделки", general.countOfAllDeals.toString(), "в воронке", "↗", "blue"))
+                appendChild(stat("В работе", (general.countOfAllDeals - closedDeals).toString(), "$closedDeals закрыто", "◷", "amber"))
+                appendChild(stat("Задачи", general.countTasks.toString(), "назначено команде", "✓", "coral"))
             })
 
             overview.appendChild(div("dashboard-columns") {
@@ -61,25 +64,27 @@ fun renderDashboard(): Element = div("dashboard-page") {
                         })
                     })
 
-                    if (tasks.isEmpty()) {
+                    if (general.tasks.isEmpty()) {
                         appendChild(div("dashboard-empty") { textContent = "Пока нет задач. Можно создать первую." })
                     } else {
-                        tasks.take(5).forEach { task ->
+                        general.tasks.take(5).forEach { task ->
+                            val details = tasks.firstOrNull { it.title == task.title }
                             appendChild(div("dashboard-task-row") {
                                 appendChild(div("dashboard-task-check") { textContent = "•" })
                                 appendChild(div("dashboard-task-main") {
                                     appendChild(tag("strong") { textContent = task.title })
                                     appendChild(div("dashboard-task-meta") {
-                                        appendChild(tag("span") { textContent = task.assignee })
-                                        appendChild(tag("span") { textContent = task.deadline.replace("T", " ") })
+                                        details?.let { appendChild(tag("span") { textContent = it.assignee }) }
+                                        appendChild(tag("span") { textContent = task.dueAt?.replace("T", " ")?.removeSuffix("Z") ?: "Без срока" })
                                     })
                                 })
-                                val priorityClass = when (task.priority) {
+                                val priorityClass = when (details?.priority) {
                                     "Высокий" -> "dashboard-priority high"
                                     "Средний" -> "dashboard-priority medium"
-                                    else -> "dashboard-priority low"
+                                    "Низкий" -> "dashboard-priority low"
+                                    else -> "dashboard-priority"
                                 }
-                                appendChild(tag("span", priorityClass) { textContent = task.priority })
+                                if (details != null) appendChild(tag("span", priorityClass) { textContent = details.priority })
                             })
                         }
                     }
@@ -121,6 +126,20 @@ fun renderDashboard(): Element = div("dashboard-page") {
                     })
                 })
             })
+
+            overview.appendChild(div("dashboard-panel dashboard-activities") {
+                appendChild(div("dashboard-panel-head") {
+                    appendChild(div {
+                        appendChild(tag("h2") { textContent = "Последние события" })
+                        appendChild(div("muted") { textContent = "Изменения в рабочем пространстве" })
+                    })
+                })
+                if (general.activities.isEmpty()) {
+                    appendChild(div("dashboard-empty") { textContent = "Событий пока нет" })
+                } else {
+                    general.activities.forEach { activity -> appendChild(activityRow(activity)) }
+                }
+            })
         }.onFailure { error ->
             overview.innerHTML = ""
             overview.appendChild(div("dashboard-load-error") {
@@ -138,4 +157,20 @@ private fun stat(label: String, value: String, note: String, icon: String, tone:
     })
     appendChild(div("dashboard-stat-label") { textContent = label })
     appendChild(div("dashboard-stat-value") { textContent = value })
+}
+
+private fun activityRow(activity: ApiGeneralActivity) = div("dashboard-activity-row") {
+    appendChild(div("dashboard-activity-mark") { textContent = activity.action.take(1) })
+    appendChild(div("dashboard-activity-main") {
+        appendChild(tag("strong") { textContent = activity.actorName })
+        appendChild(div("muted") {
+            textContent = when (activity.action) {
+                "DEAL_CREATED" -> "создал сделку"
+                "STAGE_CHANGED" -> "изменил этап сделки"
+                "TASK_CREATED" -> "добавил задачу"
+                else -> activity.action.replace('_', ' ').lowercase()
+            }
+        })
+    })
+    appendChild(tag("span", "dashboard-activity-time") { textContent = activity.createdAt.replace("T", " ").removeSuffix("Z") })
 }

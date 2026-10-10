@@ -59,7 +59,7 @@ data class DealDto(
     val id: Long,
     val title: String,
     val company: String,
-    val amount: Int,
+    val amount: Double,
     val responsibleUser: String,
     val stage: String,
     val date: String

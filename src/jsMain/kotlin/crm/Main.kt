@@ -2,7 +2,13 @@ package crm
 
 import crm.pages.*
 import crm.utils.*
+import crm.api.ApiLoginRequest
+import crm.api.ApiRegisterRequest
+import crm.api.FlexCrmApiProvider
 import kotlinx.browser.document
+import kotlinx.browser.window
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import org.w3c.dom.Element
 import org.w3c.dom.HTMLInputElement
 
@@ -24,6 +30,7 @@ var currentUser: User? = null
 
 var currentPage = Page.DASHBOARD
 var selectedClientId: Long? = null
+private var registrationMode = false
 
 fun getAvailablePages(role: UserRole): List<Page> {
     return when (role) {
@@ -92,7 +99,6 @@ private fun navButton(label: String, page: Page): Element = button(label, "nav-i
 }
 
 private fun topbar(user: User): Element = tag("header", "topbar") {
-    appendChild(tag("input", "search").apply { setAttribute("placeholder", "Поиск...") })
     appendChild(div("user") {
         val initials = user.name.trim().take(1).ifEmpty { "U" }.uppercase()
         appendChild(div("avatar") { textContent = initials })
@@ -101,8 +107,11 @@ private fun topbar(user: User): Element = tag("header", "topbar") {
             appendChild(div("muted") { textContent = user.role.title })
         })
         appendChild(button("Выйти", "secondary") {
-            currentUser = null
-            renderApp()
+            MainScope().launch {
+                FlexCrmApiProvider.client.logout()
+                currentUser = null
+                renderApp()
+            }
         }.apply {
             setAttribute("style", "margin-left: 14px; font-size: 12px; padding: 6px 12px; cursor: pointer; color: #e53e3e; border-color: #fed7d7;")
         })
@@ -110,66 +119,94 @@ private fun topbar(user: User): Element = tag("header", "topbar") {
 }
 
 private fun renderAuthScreen(): Element {
-    val nameInput = (document.createElement("input") as HTMLInputElement).apply {
+    val companyInput = (document.createElement("input") as HTMLInputElement).apply {
         className = "form-control"
-        placeholder = "Ваше имя"
-        value = "Егор Канатов"
+        placeholder = "ООО Ромашка"
+    }
+    val firstNameInput = (document.createElement("input") as HTMLInputElement).apply {
+        className = "form-control"
+        placeholder = "Имя"
+    }
+    val lastNameInput = (document.createElement("input") as HTMLInputElement).apply {
+        className = "form-control"
+        placeholder = "Фамилия"
     }
     val emailInput = (document.createElement("input") as HTMLInputElement).apply {
         className = "form-control"
         placeholder = "Email"
-        value = "admin@flexcrm.ru"
+        value = if (registrationMode) "" else "admin@flexcrm.ru"
     }
-
-    var selectedRole = UserRole.ADMIN
+    val passwordInput = (document.createElement("input") as HTMLInputElement).apply {
+        className = "form-control"
+        type = "password"
+        placeholder = "Пароль"
+        value = if (registrationMode) "" else "StrongPassword123!"
+    }
 
     return div("auth-wrapper") {
         appendChild(div("auth-card") {
-            appendChild(tag("h2") { textContent = "FlexCRM" })
-            appendChild(div("subtitle") { textContent = "Регистрация и выбор роли пользователя" })
-
-            appendChild(div("form-group") {
-                appendChild(tag("label") { textContent = "Имя пользователя *" })
-                appendChild(nameInput)
+            appendChild(tag("h2") { textContent = if (registrationMode) "Новая компания" else "FlexCRM" })
+            appendChild(div("subtitle") {
+                textContent = if (registrationMode) "Создайте компанию и аккаунт администратора" else "Войдите в рабочее пространство"
             })
 
+            if (registrationMode) {
+                appendChild(div("form-group") {
+                    appendChild(tag("label") { textContent = "Название компании *" })
+                    appendChild(companyInput)
+                })
+                appendChild(div("form-group") {
+                    appendChild(tag("label") { textContent = "Имя администратора *" })
+                    appendChild(firstNameInput)
+                })
+                appendChild(div("form-group") {
+                    appendChild(tag("label") { textContent = "Фамилия администратора *" })
+                    appendChild(lastNameInput)
+                })
+            }
+
             appendChild(div("form-group") {
-                appendChild(tag("label") { textContent = "Email" })
+                appendChild(tag("label") { textContent = "Email *" })
                 appendChild(emailInput)
             })
-
             appendChild(div("form-group") {
-                appendChild(tag("label") { textContent = "Позиция (должность) *" })
-
-                UserRole.entries.forEach { role ->
-                    val radio = (document.createElement("input") as HTMLInputElement).apply {
-                        type = "radio"
-                        name = "user_role"
-                        value = role.name
-                        checked = (role == selectedRole)
-                        addEventListener("change", {
-                            if (checked) selectedRole = role
-                        })
-                    }
-
-                    appendChild(tag("label", "role-option") {
-                        appendChild(radio)
-                        appendChild(div("role-info") {
-                            appendChild(tag("strong") { textContent = role.title })
-                            appendChild(tag("span") { textContent = role.description })
-                        })
-                    })
-                }
+                appendChild(tag("label") { textContent = "Пароль *" })
+                appendChild(passwordInput)
             })
 
-            appendChild(button("Войти в систему", "primary") {
-                val name = nameInput.value.ifBlank { "Пользователь" }
-                val email = emailInput.value.ifBlank { "user@flexcrm.ru" }
-
-                currentUser = User(name, email, selectedRole)
-                renderApp()
+            appendChild(button(if (registrationMode) "Создать компанию" else "Войти", "primary") {
+                MainScope().launch {
+                    runCatching {
+                        if (registrationMode) {
+                            FlexCrmApiProvider.client.register(ApiRegisterRequest(
+                                companyName = companyInput.value,
+                                email = emailInput.value,
+                                password = passwordInput.value,
+                                firstName = firstNameInput.value,
+                                lastName = lastNameInput.value
+                            )).body.user
+                        } else {
+                            FlexCrmApiProvider.client.login(ApiLoginRequest(emailInput.value, passwordInput.value)).body.user
+                        }
+                    }.onSuccess { user ->
+                        val role = UserRole.entries.firstOrNull { it.name == user.role } ?: UserRole.EMPLOYEE
+                        currentUser = User("${user.firstName} ${user.lastName}".trim(), user.email, role)
+                        registrationMode = false
+                        renderApp()
+                    }.onFailure { error ->
+                        window.alert(error.message ?: "Не удалось выполнить запрос")
+                    }
+                }
             }.apply {
-                setAttribute("style", "width: 100%; margin-top: 12px; padding: 12px; font-size: 15px;")
+                setAttribute("style", "width: 100%; margin-top: 4px; padding: 12px; font-size: 14px;")
+            })
+
+            appendChild(button(
+                if (registrationMode) "Уже есть аккаунт? Войти" else "Создать новую компанию",
+                "auth-mode-toggle"
+            ) {
+                registrationMode = !registrationMode
+                renderApp()
             })
         })
     }
